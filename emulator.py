@@ -40,6 +40,12 @@ class node:
 
     def __eq__(self, node2):
         return self.ip_num == node2.ip_num and self.port == node2.port
+    
+    def __hash__(self):
+        return hash((self.ip_num, self.port))
+    
+    def __str__(self):
+        return "IP: " + self.ip + " Port: " + str(self.port)
 
 class packet:
     def __init__(self):
