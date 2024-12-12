@@ -111,7 +111,10 @@ def buildForwardTable():
 def createroutes(net_top):
     while True:
         new_packet = packet()
-        new_packet.packet, rec_addr = sock.recvfrom(1024)
+        try:
+            new_packet.packet, rec_addr = sock.recvfrom(1024)
+        except:
+            pass
         if (new_packet.packet != None):
             pass
 
@@ -149,15 +152,6 @@ if __name__ == "__main__":
         if (next_packet != None and get_time_ms() > delay_until):
             next_packet.send()
             next_packet = None
-        if next_packet == None:
-            if (len(queue1) > 0):
-                next_packet = queue1.pop(0)
-            elif (len(queue2) > 0):
-                next_packet = queue2.pop(0)
-            elif (len(queue3) > 0):
-                next_packet = queue3.pop(0)
-            if (next_packet != None):
-                delay_until = get_time_ms() + (next_packet.delay / MS_PER_SEC)
 
 
 
