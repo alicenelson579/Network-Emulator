@@ -60,16 +60,16 @@ class packet:
         self.next         = None
         self.recfrom      = None
     
-    #def log(self, msg):
-    #    with open(log_name, "w") as log_file:
-    #        log_file.write("A packet was dropping because " + msg + "\n")
-    #        log_file.write("Dropped packet info:\n")
-    #        log_file.write("Source (address, port): " + str(self.src) + "\n")
-    #        log_file.write("Destination (address, port)" + str(self.dest) + "\n")
-    #        log_file.write("Packet type: " + self.type + "\n")
-    #        log_file.write("Time of loss: " + str(get_time_ms()) + "\n")
-    #        log_file.write("Priority: " + str(self.priority) + "\n")
-    #        log_file.write("Payload Size: " + str(self.inner_length) + "\n")
+    # def log(self, msg):
+    #     with open(log_name, "w") as log_file:
+    #         log_file.write("A packet was dropping because " + msg + "\n")
+    #         log_file.write("Dropped packet info:\n")
+    #         log_file.write("Source (address, port): " + str(self.src) + "\n")
+    #         log_file.write("Destination (address, port)" + str(self.dest) + "\n")
+    #         log_file.write("Packet type: " + self.type + "\n")
+    #         log_file.write("Time of loss: " + str(get_time_ms()) + "\n")
+    #         log_file.write("Priority: " + str(self.priority) + "\n")
+    #         log_file.write("Payload Size: " + str(self.inner_length) + "\n")
     
     def route(self):
         for entry in forwarding_table:
@@ -171,21 +171,22 @@ if __name__ == "__main__":
 
     readtopology(file_name)
     buildForwardTable()
+    createroutes()
 
-    delay_until = None
-    next_packet = None
-    while True:
-        new_packet = packet()
-        try:
-            new_packet.packet, address = sock.recvfrom(1024)
-        except:
-            pass
-        if (new_packet.packet != None):
-            new_packet.decapsulate()
-            new_packet.route()
-        if (next_packet != None and get_time_ms() > delay_until):
-            next_packet.send()
-            next_packet = None
+    # delay_until = None
+    # next_packet = None
+    # while True:
+    #     new_packet = packet()
+    #     try:
+    #         new_packet.packet, address = sock.recvfrom(1024)
+    #     except:
+    #         pass
+    #     if (new_packet.packet != None):
+    #         new_packet.decapsulate()
+    #         new_packet.route()
+    #     if (next_packet != None and get_time_ms() > delay_until):
+    #         next_packet.send()
+    #         next_packet = None
 
 
 
