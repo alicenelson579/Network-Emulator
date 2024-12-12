@@ -89,6 +89,14 @@ class packet:
         self.inner_length = header[8]
         self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
 
+def print_topology():
+    for entry in network_topology.keys():
+        cur = str(entry)+ " | Edges: "
+        for x in network_topology[entry].keys():
+            cur = cur + " (" + str(x) + "):" + str(network_topology[entry][x])
+        " ".join(["(" + str(x) + ") : " + str(network_topology[entry][x]) for x in network_topology[entry].keys()])
+        print(cur)
+
 def readtopology(filename):
     with open(filename, "r") as file:
         next_line = file.readline().split()
@@ -97,10 +105,10 @@ def readtopology(filename):
             edges = {}
             for link in next_line[1:]:
                 cur_node = node.from_str_pair(link.split(",")[:2])
-                edges[cur_node] = link.split(",")[2]
+                edges[cur_node] = link.split(",")[2]      
             network_topology[src_node] = edges
             next_line = file.readline().split()
-    print(network_topology)
+    print_topology()
 
 def buildForwardTable():
     costs = {}
