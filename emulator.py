@@ -7,8 +7,10 @@ import random
 NS_PER_SEC = 1000000000
 MS_PER_SEC = 1000000
 NUM_BYTES_IN_HEADER = 26
-forwarding_table = []
+forwarding_table = {}
+network_topology = {}
 port = None
+host_node = None
 
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
@@ -31,23 +33,16 @@ class node:
         self.ip     = ip
         self.port   = port
         self.ip_num = ip_to_int(ip)
-    def __init__(self, node_pair):
-        self.ip     = node_pair[0]
-        self.port   = int(node_pair[1])
-        self.ip_num = ip_to_int(self.ip)
+
+    @classmethod
+    def from_str_pair(self, node_pair):
+        return node(node_pair[0], int(node_pair[1]))
+
     def __eq__(self, node2):
         return self.ip_num == node2.ip_num and self.port == node2.port
 
-class forwarding_table_entry:
-    def __init__(self, dest, next):
-        self.dest  = dest
-        self.next  = next
-        #self.delay = None
-        #self.loss  = None
-
 class packet:
     def __init__(self):
-        self.priority     = None
         self.src          = None
         self.dest         = None
         self.length       = None
@@ -56,8 +51,8 @@ class packet:
         self.inner_length = None
         self.payload      = None
         self.packet       = None
-        self.delay        = None
         self.next         = None
+        self.recfrom      = None
     def log(self, msg):
         with open(log_name, "w") as log_file:
             log_file.write("A packet was dropping because " + msg + "\n")
@@ -89,21 +84,25 @@ class packet:
         self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
 
 def readtopology(filename):
-    network_topology = {}
     with open(filename, "r") as file:
         next_line = file.readline().split()
         while (next_line != []):
-            src_node = node(next_line[0].split(","))
+            src_node = node.from_str_pair(next_line[0].split(","))
             edges = {}
             for link in next_line[1:]:
-                cur_node = node(link.split(",")[:2])
+                cur_node = node.from_str_pair(link.split(",")[:2])
                 edges[cur_node] = link.split(",")[2]
             network_topology[src_node] = edges
             next_line = file.readline().split()
-    return network_topology
+    print(network_topology)
+
+def buildForwardTable():
+    costs = {}
+    for edge in network_topology[host_node].keys():
+        costs[edge] = network_topology[host_node][edge]
+
 
 def createroutes(net_top):
-
     while True:
         new_packet = packet()
         new_packet.packet, rec_addr = sock.recvfrom(1024)
@@ -124,7 +123,11 @@ if __name__ == "__main__":
     file_name  = args.f
     #log_name   = args.l
 
+    host_node = node(address, port)
     sock.bind((address, port))
+
+    readtopology(file_name)
+    buildForwardTable()
 
     delay_until = None
     next_packet = None
