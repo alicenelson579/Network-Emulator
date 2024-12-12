@@ -7,9 +7,8 @@ import random
 NS_PER_SEC = 1000000000
 MS_PER_SEC = 1000000
 NUM_BYTES_IN_HEADER = 26
-queue_size = None
-log_name = None
 forwarding_table = []
+port = None
 
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
@@ -102,6 +101,14 @@ def readtopology(filename):
             network_topology[src_node] = edges
             next_line = file.readline().split()
     return network_topology
+
+def createroutes(net_top):
+
+    while True:
+        new_packet = packet()
+        new_packet.packet, rec_addr = sock.recvfrom(1024)
+        if (new_packet.packet != None):
+            pass
 
 
 if __name__ == "__main__":
