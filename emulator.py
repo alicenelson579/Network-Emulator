@@ -10,9 +10,6 @@ NUM_BYTES_IN_HEADER = 26
 queue_size = None
 log_name = None
 forwarding_table = []
-queue1 = []
-queue2 = []
-queue3 = []
 
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
@@ -35,6 +32,10 @@ class node:
         self.ip     = ip
         self.port   = port
         self.ip_num = ip_to_int(ip)
+    def __init__(self, node_pair):
+        self.ip     = node_pair[0]
+        self.port   = int(node_pair[1])
+        self.ip_num = ip_to_int(self.ip)
     def __eq__(self, node2):
         return self.ip_num == node2.ip_num and self.port == node2.port
 
@@ -88,6 +89,19 @@ class packet:
         self.inner_length = header[8]
         self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
 
+def readtopology(filename):
+    network_topology = {}
+    with open(filename, "r") as file:
+        next_line = file.readline().split()
+        while (next_line != []):
+            src_node = node(next_line[0].split(","))
+            edges = {}
+            for link in next_line[1:]:
+                cur_node = node(link.split(",")[:2])
+                edges[cur_node] = link.split(",")[2]
+            network_topology[src_node] = edges
+            next_line = file.readline().split()
+    return network_topology
 
 
 if __name__ == "__main__":
@@ -105,7 +119,6 @@ if __name__ == "__main__":
 
     sock.bind((address, port))
 
-    print(forwarding_table)
     delay_until = None
     next_packet = None
     while True:
