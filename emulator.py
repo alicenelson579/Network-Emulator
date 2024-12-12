@@ -2,7 +2,6 @@ import argparse
 import socket
 import struct
 import time
-import random
 
 NS_PER_SEC = 1000000000
 MS_PER_SEC = 1000000
@@ -33,6 +32,7 @@ class node:
         self.ip     = ip
         self.port   = port
         self.ip_num = ip_to_int(ip)
+        self.pair   = (ip, port)
 
     @classmethod
     def from_str_pair(self, node_pair):
@@ -71,25 +71,29 @@ class packet:
     #         log_file.write("Priority: " + str(self.priority) + "\n")
     #         log_file.write("Payload Size: " + str(self.inner_length) + "\n")
     
-    def route(self):
-        for entry in forwarding_table:
-            if (entry.dest[0] == self.dest[0] and entry.dest[1] == self.dest[1]):
-                self.next = entry.next
-                self.delay = entry.delay
-                self.loss  = entry.loss
-                sock.sendto(self.packet, self.next)
-                return
-        self.log("no forwarding entry found")
+    def send(self):
+        if self.dest in forwarding_table.keys():
+            sock.sendto(self.encapsulate(), forwarding_table[self.dest])
+        else:
+            self.log("no forwarding entry found")
     def decapsulate(self):
-        header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
-        self.priority     = header[0]
-        self.src          = (header[1], header[2])
-        self.dest         = (header[3], header[4])
+        header = struct.unpack("!IHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
+        self.src          = node(header[1], header[2])
+        self.dest         = node(header[3], header[4])
+        print("source" + str(self.src))
+        print("dest" + str(self.dest))
         self.length       = header[5]
         self.type         = header[6].decode("utf-8")
         self.seq_num      = header[7]
         self.inner_length = header[8]
         self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
+    def encapsulate(self):
+        header = struct.pack("!IHIHIcII", self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
+        if (self.payload == None):
+            self.packet = header
+        else:
+            self.packet = header + self.payload
+        return self.packet
 
 def print_topology():
     for entry in network_topology.keys():
@@ -140,9 +144,20 @@ def buildForwardTable():
     #printForwardTable()
 
 
+hello_packet              = packet()
+hello_packet.src          = host_node()
+hello_packet.type         = "H"
+hello_packet.seq_num      = 0
+hello_packet.length       = 0
+hello_packet.inner_length = 0
 
+def send_hello():
+    for edge in network_topology[host_name].keys():
+        hello_packet.dest = edge
+        hello_packet.send()
 
 def createroutes(net_top):
+    next_hello = get_time_ms()
     while True:
         new_packet = packet()
         try:
@@ -151,6 +166,9 @@ def createroutes(net_top):
             pass
         if (new_packet.packet != None):
             pass
+        if get_time_ms() >= next_hello:
+            next_hello = next_hello + 5
+            send_hello()
 
 
 if __name__ == "__main__":
@@ -162,9 +180,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     port       = args.p
-    #queue_size = args.q
     file_name  = args.f
-    #log_name   = args.l
 
     host_node = node(address, port)
     sock.bind((address, port))
