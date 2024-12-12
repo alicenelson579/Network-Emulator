@@ -105,15 +105,33 @@ def readtopology(filename):
             edges = {}
             for link in next_line[1:]:
                 cur_node = node.from_str_pair(link.split(",")[:2])
-                edges[cur_node] = link.split(",")[2]      
+                edges[cur_node] = int(link.split(",")[2])
             network_topology[src_node] = edges
             next_line = file.readline().split()
-    print_topology()
+    #print_topology()
 
 def buildForwardTable():
+    added_nodes = [host_node]
+    #each entry is a (node, total cost to that node) pair
     costs = {}
+    #where packets headed towards key node will be sent
+    next_hop = {}
     for edge in network_topology[host_node].keys():
         costs[edge] = network_topology[host_node][edge]
+        next_hop[edge] = edge
+
+    while len(added_nodes) < len(network_topology.keys()):
+        next_node = min({k: v for k, v in costs.items() if k not in added_nodes}, key = costs.get)
+        print(next_node)
+        added_nodes.append(next_node)
+        forwarding_table[next_node] = next_hop[next_node]
+        for edge in network_topology[next_node]:
+            if (edge not in added_nodes):
+                if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
+                    costs[edge] = costs[next_node] + network_topology[next_node][edge]
+                    next_hop[edge] = next_node
+
+
 
 
 def createroutes(net_top):
