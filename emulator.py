@@ -112,6 +112,11 @@ def readtopology(filename):
             next_line = file.readline().split()
     #print_topology()
 
+def printForwardTable():
+    print("Forwarding Table:")
+    for dest_node in forwarding_table.keys():
+        print("(" + str(dest_node) + "): (" + str(forwarding_table[dest_node]) + ")")
+
 def buildForwardTable():
     added_nodes = [host_node]
     #each entry is a (node, total cost to that node) pair
@@ -132,6 +137,7 @@ def buildForwardTable():
                 if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
                     costs[edge] = costs[next_node] + network_topology[next_node][edge]
                     next_hop[edge] = next_node
+    #printForwardTable()
 
 
 
