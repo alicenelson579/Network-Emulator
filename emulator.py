@@ -163,13 +163,14 @@ def send_link_state():
     link_state_packet = packet()
     link_state_packet.type = "L"
     link_state_packet.seq_num = cur_link_num
-    link_state_packet.inner_length = 0
-    link_state_packet.length = 9 + link_state_packet.inner_length
+    link_state_packet.inner_length = 4
     data = struct.pack("!I", 100)
     valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
     for edge in valid_edges:
         data = data + struct.pack("IHI", edge.ip_num, edge.port, network_topology[host_node][edge])
+        link_state_packet.inner_length += 10
     link_state_packet.payload = data
+    link_state_packet.length = 9 + link_state_packet.inner_length
     for edge in valid_edges:
         link_state_packet.send()
     cur_link_num += 1 
@@ -179,6 +180,7 @@ def send_link_state():
 def create_routes():
     next_hello = time.time_ns()
     latest_timestamp = {}
+    largest_seq_num = {}
     for edge in network_topology[host_node].keys():
         latest_timestamp[edge] = time.time_ns()
     while True:
@@ -197,6 +199,23 @@ def create_routes():
                     build_forward_table()
                     print("connection to node " + str(new_packet.src) + " has been reestablished")
                 latest_timestamp[new_packet.src] = cur_time
+            elif new_packet.type == "L":
+                if new_packet.src not in largest_seq_num.keys() or new_packet.seq_num > largest_seq_num[new_packet.src]:
+                    ttl = struct.unpack("!I", new_packet.payload[:4])[0]
+                    if (ttl > 0):
+                        largest_seq_num[new_packet.src] = new_packet.seq_num
+                        for i in range(0, (new_packet.inner_length - 4) / 10):
+                            entry = struct.unpack("!IHI", new_packet.payload[(i * 10)+4:(i * 10)+14])
+                            edge_node = node(int_to_ip(entry[0]), entry[1])
+                            network_topology[new_packet.src][edge_node] = entry[2]
+                            network_topology[edge_node][new_packet.src] = entry[2]
+                            build_forward_table()
+                        new_ttl = struct.pack("!I", ttl - 1)
+                        new_packet.payload = new_ttl + new_packet.payload[4:]
+                        for edge in network_topology[host_node].keys():
+                            if (network_topology[host_node][edge] > 0):
+                                new_packet.dest = edge
+                                new_packet.send()
         
         if cur_time >= next_hello:
             #print("cur time: " + str(cur_time) + " next hello: " + str(next_hello))
