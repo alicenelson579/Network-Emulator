@@ -154,7 +154,7 @@ hello_packet.length       = 0
 hello_packet.inner_length = 0
 
 def send_hello():
-    valid_edges = [x for x in network_topology[host_node] if network_topology[host_node][x] > 0]
+    valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
     for edge in valid_edges:
         hello_packet.dest = edge
         hello_packet.send()
@@ -162,9 +162,19 @@ def send_hello():
 def send_link_state():
     link_state_packet = packet()
     link_state_packet.type = "L"
-    link_state_packet.seq_num = 0
+    link_state_packet.seq_num = cur_link_num
     link_state_packet.inner_length = 0
     link_state_packet.length = 9 + link_state_packet.inner_length
+    data = struct.pack("!I", 100)
+    valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
+    for edge in valid_edges:
+        data = data + struct.pack("IHI", edge.ip_num, edge.port, network_topology[host_node][edge])
+    link_state_packet.payload = data
+    for edge in valid_edges:
+        link_state_packet.send()
+    cur_link_num += 1 
+
+
 
 def create_routes():
     next_hello = time.time_ns()
