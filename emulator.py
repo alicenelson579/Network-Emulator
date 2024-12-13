@@ -229,15 +229,29 @@ def create_routes():
                             if (network_topology[host_node][edge] > 0 and rec_node != edge):
                                 new_packet.dest = edge
                                 new_packet.send()
-        
+            elif new_packet.type == "O":
+                ttl = struct.unpack("!I", new_packet.payload[:4])[0]
+                if ttl == 0:
+                    ret_packet = packet()
+                    ret_packet.src = host_node
+                    ret_packet.dest = new_packet.src
+                    ret_packet.type = "O"
+                    ret_packet.length = 0
+                    ret_packet.inner_length = 0
+                    ret_packet.seq_num = 0
+                    ret_packet.send()
+                else:
+                    if new_packet.dest in forwarding_table.keys():
+                        new_packet.payload = struct.pack("!I", ttl - 1)
+                        new_packet.send()
+                    
+            else:
+                if new_packet.dest in forwarding_table.keys():
+                    new_packet.send()
         if cur_time >= next_hello:
             #print("cur time: " + str(cur_time) + " next hello: " + str(next_hello))
             next_hello = cur_time + NS_PER_MS * 2
             send_hello()
-
-        if cur_time >= next_link_state:
-            next_link_state = cur_time + NS_PER_MS * 10
-            send_link_state()
 
         for edge in latest_timestamp.keys():
             if latest_timestamp[edge] != None and cur_time > latest_timestamp[edge] + 50 * NS_PER_MS:
@@ -248,9 +262,13 @@ def create_routes():
                 send_link_state()
                 latest_timestamp[edge] = None
 
+        if cur_time >= next_link_state:
+            next_link_state = cur_time + NS_PER_MS * 10
+            send_link_state()
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Send a file to a requester")
+    parser = argparse.ArgumentParser(description = "emulate a network")
 
     parser.add_argument("-p", required = True, type = int)
     parser.add_argument("-f", required = True)
