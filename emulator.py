@@ -75,7 +75,7 @@ class packet:
         if self.dest in forwarding_table.keys():
             sock.sendto(self.encapsulate(), forwarding_table[self.dest].pair)
         else:
-            print("no forwarding entry found")
+            raise Exception("no forwarding entry found")
     def decapsulate(self):
         header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
         self.src          = node(int_to_ip(header[1]), header[2])
@@ -86,7 +86,7 @@ class packet:
         self.type         = header[6].decode("utf-8")
         self.seq_num      = header[7]
         self.inner_length = header[8]
-        self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
+        self.payload = self.packet[NUM_BYTES_IN_HEADER:]
     def encapsulate(self):
         header = struct.pack("!BIHIHIcII", 1, self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
         if (self.payload == None):
@@ -144,7 +144,7 @@ def build_forward_table():
                 if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
                     costs[edge] = costs[next_node] + network_topology[next_node][edge]
                     next_hop[edge] = next_hop[next_node]
-    print_forward_table()
+    #print_forward_table()
 
 
 hello_packet              = packet()
@@ -160,18 +160,23 @@ def send_hello():
         hello_packet.send()
 
 def send_link_state():
+    global cur_link_num
     link_state_packet = packet()
+    link_state_packet.src = host_node
     link_state_packet.type = "L"
     link_state_packet.seq_num = cur_link_num
     link_state_packet.inner_length = 4
     data = struct.pack("!I", 100)
     valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
+    #print("sending link state packet")
     for edge in valid_edges:
-        data = data + struct.pack("IHI", edge.ip_num, edge.port, network_topology[host_node][edge])
+        #print(edge)
+        data = data + struct.pack("!IHI", edge.ip_num, edge.port, network_topology[host_node][edge])
         link_state_packet.inner_length += 10
     link_state_packet.payload = data
     link_state_packet.length = 9 + link_state_packet.inner_length
     for edge in valid_edges:
+        link_state_packet.dest = edge
         link_state_packet.send()
     cur_link_num += 1 
 
@@ -179,6 +184,7 @@ def send_link_state():
 
 def create_routes():
     next_hello = time.time_ns()
+    next_link_state = next_hello
     latest_timestamp = {}
     largest_seq_num = {}
     for edge in network_topology[host_node].keys():
@@ -192,28 +198,35 @@ def create_routes():
         cur_time = time.time_ns()
         if (new_packet.packet != None):
             new_packet.decapsulate()
+            rec_node = node(rec_addr[0], rec_addr[1])
             if new_packet.type == "H":
                 if latest_timestamp[new_packet.src] == None:
                     network_topology[host_node][new_packet.src] = abs(network_topology[host_node][new_packet.src])
                     network_topology[new_packet.src][host_node] = abs(network_topology[new_packet.src][host_node])
                     build_forward_table()
-                    print("connection to node " + str(new_packet.src) + " has been reestablished")
+                    send_link_state()
+                    #print("connection to node " + str(new_packet.src) + " has been reestablished")
                 latest_timestamp[new_packet.src] = cur_time
             elif new_packet.type == "L":
                 if new_packet.src not in largest_seq_num.keys() or new_packet.seq_num > largest_seq_num[new_packet.src]:
                     ttl = struct.unpack("!I", new_packet.payload[:4])[0]
                     if (ttl > 0):
                         largest_seq_num[new_packet.src] = new_packet.seq_num
-                        for i in range(0, (new_packet.inner_length - 4) / 10):
+                        for edge in network_topology[new_packet.src]:
+                            network_topology[new_packet.src][edge] = abs(network_topology[new_packet.src][edge]) * -1
+                        for n in network_topology.keys():
+                            if new_packet.src in network_topology[n] and network_topology[n][new_packet.src] > 0:
+                                network_topology[n][new_packet.src] = abs(network_topology[n][new_packet.src]) * -1
+                        for i in range(0, int((new_packet.inner_length - 4) / 10)):
                             entry = struct.unpack("!IHI", new_packet.payload[(i * 10)+4:(i * 10)+14])
                             edge_node = node(int_to_ip(entry[0]), entry[1])
                             network_topology[new_packet.src][edge_node] = entry[2]
                             network_topology[edge_node][new_packet.src] = entry[2]
-                            build_forward_table()
+                        build_forward_table()
                         new_ttl = struct.pack("!I", ttl - 1)
                         new_packet.payload = new_ttl + new_packet.payload[4:]
                         for edge in network_topology[host_node].keys():
-                            if (network_topology[host_node][edge] > 0):
+                            if (network_topology[host_node][edge] > 0 and rec_node != edge):
                                 new_packet.dest = edge
                                 new_packet.send()
         
@@ -222,12 +235,17 @@ def create_routes():
             next_hello = cur_time + NS_PER_MS * 2
             send_hello()
 
+        if cur_time >= next_link_state:
+            next_link_state = cur_time + NS_PER_MS * 10
+            send_link_state()
+
         for edge in latest_timestamp.keys():
             if latest_timestamp[edge] != None and cur_time > latest_timestamp[edge] + 50 * NS_PER_MS:
-                print("connection to node " + str(edge) + " has been broken")
+                #print("connection to node " + str(edge) + " has been broken")
                 network_topology[host_node][edge] = abs(network_topology[host_node][edge]) * -1
                 network_topology[edge][host_node] = abs(network_topology[edge][host_node]) * -1
                 build_forward_table()
+                send_link_state()
                 latest_timestamp[edge] = None
 
 
