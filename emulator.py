@@ -4,12 +4,14 @@ import struct
 import time
 
 NS_PER_SEC = 1000000000
-MS_PER_SEC = 1000000
+MS_PER_SEC = 1000
+NS_PER_MS  = 1000000
 NUM_BYTES_IN_HEADER = 26
 forwarding_table = {}
 network_topology = {}
 port = None
 host_node = None
+cur_link_num = 0
 
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
@@ -73,7 +75,7 @@ class packet:
         if self.dest in forwarding_table.keys():
             sock.sendto(self.encapsulate(), forwarding_table[self.dest].pair)
         else:
-            self.log("no forwarding entry found")
+            print("no forwarding entry found")
     def decapsulate(self):
         header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
         self.src          = node(int_to_ip(header[1]), header[2])
@@ -101,7 +103,7 @@ def print_topology():
         " ".join(["(" + str(x) + ") : " + str(network_topology[entry][x]) for x in network_topology[entry].keys()])
         print(cur)
 
-def readtopology(filename):
+def read_topology(filename):
     with open(filename, "r") as file:
         next_line = file.readline().split()
         while (next_line != []):
@@ -114,33 +116,35 @@ def readtopology(filename):
             next_line = file.readline().split()
     #print_topology()
 
-def printForwardTable():
+def print_forward_table():
     print("Forwarding Table:")
+    print("Length: " + str(len(forwarding_table.keys())))
     for dest_node in forwarding_table.keys():
         print("(" + str(dest_node) + "): (" + str(forwarding_table[dest_node]) + ")")
 
-def buildForwardTable():
-    print(forwarding_table)
+def build_forward_table():
+    global forwarding_table
+    forwarding_table = {}
     added_nodes = [host_node]
     #each entry is a (node, total cost to that node) pair
     costs = {}
     #where packets headed towards key node will be sent
     next_hop = {}
     for edge in network_topology[host_node].keys():
-        costs[edge] = network_topology[host_node][edge]
-        next_hop[edge] = edge
+        if (network_topology[host_node][edge] > 0):
+            costs[edge] = network_topology[host_node][edge]
+            next_hop[edge] = edge
 
-    while len(added_nodes) < len(network_topology.keys()):
+    while len(added_nodes) < len(network_topology.keys()) and len([x for x in costs.keys() if x not in added_nodes]) > 0:
         next_node = min({k: v for k, v in costs.items() if k not in added_nodes}, key = costs.get)
         added_nodes.append(next_node)
         forwarding_table[next_node] = next_hop[next_node]
         for edge in network_topology[next_node]:
-            if (edge not in added_nodes):
+            if edge not in added_nodes and network_topology[next_node][edge] > 0:
                 if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
                     costs[edge] = costs[next_node] + network_topology[next_node][edge]
-                    next_hop[edge] = next_node
-    print(forwarding_table)
-    printForwardTable()
+                    next_hop[edge] = next_hop[next_node]
+    print_forward_table()
 
 
 hello_packet              = packet()
@@ -150,28 +154,52 @@ hello_packet.length       = 0
 hello_packet.inner_length = 0
 
 def send_hello():
-    for edge in network_topology[host_node].keys():
+    valid_edges = [x for x in network_topology[host_node] if network_topology[host_node][x] > 0]
+    for edge in valid_edges:
         hello_packet.dest = edge
         hello_packet.send()
 
+def send_link_state():
+    link_state_packet = packet()
+    link_state_packet.type = "L"
+    link_state_packet.seq_num = 0
+    link_state_packet.inner_length = 0
+    link_state_packet.length = 9 + link_state_packet.inner_length
+
 def create_routes():
-    next_hello = get_time_ms()
+    next_hello = time.time_ns()
     latest_timestamp = {}
     for edge in network_topology[host_node].keys():
-        latest_timestamp[edge] = get_time_ms()
+        latest_timestamp[edge] = time.time_ns()
     while True:
         new_packet = packet()
         try:
             new_packet.packet, rec_addr = sock.recvfrom(1024)
         except:
             pass
+        cur_time = time.time_ns()
         if (new_packet.packet != None):
             new_packet.decapsulate()
             if new_packet.type == "H":
-                pass
-        if get_time_ms() >= next_hello:
-            next_hello = next_hello + 5
+                if latest_timestamp[new_packet.src] == None:
+                    network_topology[host_node][new_packet.src] = abs(network_topology[host_node][new_packet.src])
+                    network_topology[new_packet.src][host_node] = abs(network_topology[new_packet.src][host_node])
+                    build_forward_table()
+                    print("connection to node " + str(new_packet.src) + " has been reestablished")
+                latest_timestamp[new_packet.src] = cur_time
+        
+        if cur_time >= next_hello:
+            #print("cur time: " + str(cur_time) + " next hello: " + str(next_hello))
+            next_hello = cur_time + NS_PER_MS * 2
             send_hello()
+
+        for edge in latest_timestamp.keys():
+            if latest_timestamp[edge] != None and cur_time > latest_timestamp[edge] + 50 * NS_PER_MS:
+                print("connection to node " + str(edge) + " has been broken")
+                network_topology[host_node][edge] = abs(network_topology[host_node][edge]) * -1
+                network_topology[edge][host_node] = abs(network_topology[edge][host_node]) * -1
+                build_forward_table()
+                latest_timestamp[edge] = None
 
 
 if __name__ == "__main__":
@@ -189,8 +217,8 @@ if __name__ == "__main__":
     hello_packet.src = host_node
     sock.bind((address, port))
 
-    readtopology(file_name)
-    buildForwardTable()
+    read_topology(file_name)
+    build_forward_table()
     create_routes()
 
 
