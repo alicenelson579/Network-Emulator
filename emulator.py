@@ -16,13 +16,11 @@ address = socket.gethostbyname(host_name)
 sock = socket.socket(type = socket.SOCK_DGRAM)
 sock.setblocking(False)
 
-def ip_to_int(ip_str):
-    l = ip_str.split(".")
-    ret = int(l[0]) * (2**24)
-    ret += int(l[1]) * (2**16)
-    ret += int(l[2]) * (2**8)
-    ret += int(l[3])
-    return ret
+def ip_to_int(addr):
+    return struct.unpack("!I", socket.inet_aton(addr))[0]
+
+def int_to_ip(addr):
+    return socket.inet_ntoa(struct.pack("!I", addr))
 
 def get_time_ms():
     return round((time.time_ns() / NS_PER_SEC), 3)
@@ -73,22 +71,22 @@ class packet:
     
     def send(self):
         if self.dest in forwarding_table.keys():
-            sock.sendto(self.encapsulate(), forwarding_table[self.dest])
+            sock.sendto(self.encapsulate(), forwarding_table[self.dest].pair)
         else:
             self.log("no forwarding entry found")
     def decapsulate(self):
-        header = struct.unpack("!IHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
-        self.src          = node(header[1], header[2])
-        self.dest         = node(header[3], header[4])
-        print("source" + str(self.src))
-        print("dest" + str(self.dest))
+        header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
+        self.src          = node(int_to_ip(header[1]), header[2])
+        self.dest         = node(int_to_ip(header[3]), header[4])
+        # print("source: " + str(self.src))
+        # print("dest: " + str(self.dest))
         self.length       = header[5]
         self.type         = header[6].decode("utf-8")
         self.seq_num      = header[7]
         self.inner_length = header[8]
         self.payload = self.packet[NUM_BYTES_IN_HEADER:].decode("utf-8")
     def encapsulate(self):
-        header = struct.pack("!IHIHIcII", self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
+        header = struct.pack("!BIHIHIcII", 1, self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
         if (self.payload == None):
             self.packet = header
         else:
@@ -122,6 +120,7 @@ def printForwardTable():
         print("(" + str(dest_node) + "): (" + str(forwarding_table[dest_node]) + ")")
 
 def buildForwardTable():
+    print(forwarding_table)
     added_nodes = [host_node]
     #each entry is a (node, total cost to that node) pair
     costs = {}
@@ -133,7 +132,6 @@ def buildForwardTable():
 
     while len(added_nodes) < len(network_topology.keys()):
         next_node = min({k: v for k, v in costs.items() if k not in added_nodes}, key = costs.get)
-        print(next_node)
         added_nodes.append(next_node)
         forwarding_table[next_node] = next_hop[next_node]
         for edge in network_topology[next_node]:
@@ -141,23 +139,26 @@ def buildForwardTable():
                 if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
                     costs[edge] = costs[next_node] + network_topology[next_node][edge]
                     next_hop[edge] = next_node
-    #printForwardTable()
+    print(forwarding_table)
+    printForwardTable()
 
 
 hello_packet              = packet()
-hello_packet.src          = host_node()
 hello_packet.type         = "H"
 hello_packet.seq_num      = 0
 hello_packet.length       = 0
 hello_packet.inner_length = 0
 
 def send_hello():
-    for edge in network_topology[host_name].keys():
+    for edge in network_topology[host_node].keys():
         hello_packet.dest = edge
         hello_packet.send()
 
-def createroutes(net_top):
+def create_routes():
     next_hello = get_time_ms()
+    latest_timestamp = {}
+    for edge in network_topology[host_node].keys():
+        latest_timestamp[edge] = get_time_ms()
     while True:
         new_packet = packet()
         try:
@@ -165,7 +166,9 @@ def createroutes(net_top):
         except:
             pass
         if (new_packet.packet != None):
-            pass
+            new_packet.decapsulate()
+            if new_packet.type == "H":
+                pass
         if get_time_ms() >= next_hello:
             next_hello = next_hello + 5
             send_hello()
@@ -183,26 +186,12 @@ if __name__ == "__main__":
     file_name  = args.f
 
     host_node = node(address, port)
+    hello_packet.src = host_node
     sock.bind((address, port))
 
     readtopology(file_name)
     buildForwardTable()
-    createroutes()
-
-    # delay_until = None
-    # next_packet = None
-    # while True:
-    #     new_packet = packet()
-    #     try:
-    #         new_packet.packet, address = sock.recvfrom(1024)
-    #     except:
-    #         pass
-    #     if (new_packet.packet != None):
-    #         new_packet.decapsulate()
-    #         new_packet.route()
-    #     if (next_packet != None and get_time_ms() > delay_until):
-    #         next_packet.send()
-    #         next_packet = None
+    create_routes()
 
 
 
