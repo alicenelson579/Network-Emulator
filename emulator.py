@@ -114,7 +114,7 @@ def read_topology(filename):
                 edges[cur_node] = int(link.split(",")[2])
             network_topology[src_node] = edges
             next_line = file.readline().split()
-    #print_topology()
+    print_topology()
 
 def print_forward_table():
     print("Forwarding Table:")
@@ -144,7 +144,7 @@ def build_forward_table():
                 if edge not in costs.keys() or costs[edge] > costs[next_node] + network_topology[next_node][edge]:
                     costs[edge] = costs[next_node] + network_topology[next_node][edge]
                     next_hop[edge] = next_hop[next_node]
-    #print_forward_table()
+    print_forward_table()
 
 
 hello_packet              = packet()
@@ -239,7 +239,10 @@ def create_routes():
                     ret_packet.length = 0
                     ret_packet.inner_length = 0
                     ret_packet.seq_num = 0
-                    ret_packet.send()
+                    ret_packet.payload = struct.pack("!I", 0)
+                    ret_packet.encapsulate()
+                    #print(new_packet.src)
+                    sock.sendto(ret_packet.packet, new_packet.src.pair)
                 else:
                     if new_packet.dest in forwarding_table.keys():
                         new_packet.payload = struct.pack("!I", ttl - 1)
