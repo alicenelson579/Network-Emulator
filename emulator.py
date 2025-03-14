@@ -15,6 +15,7 @@ cur_link_num = 0
 
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
+print(address)
 sock = socket.socket(type = socket.SOCK_DGRAM)
 sock.setblocking(False)
 
