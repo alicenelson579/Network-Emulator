@@ -29,11 +29,13 @@ Example:
 1.1.1.1,1 1.1.1.1,2
 
 1.1.1.1,2 1.1.1.1,1 1.1.1.1,3
+
 1.1.1.1,3 1.1.1.1,2
 
 This topology file denotes a network of emulators all at the IP address 1.1.1.1,
 with the emulators one ports 1 and 3 being connected to the emulator on port 2,
 so the network would have the shape of:
+
 1 - 2 - 3
 
 network_trace.py
