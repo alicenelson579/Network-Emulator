@@ -7,7 +7,7 @@ It emulates a simple router in a network of routers, and the shape of that
 network is determined by a topology file.
 
 Usage:
-python3 emulator.py -p <port> -f <filename>
+python3 emulator.py -p PORT -f FILENAME
 
 There are two mandatory flags:
 
@@ -20,14 +20,14 @@ connections the emulator will make with other emulators
 
 The Topology File
 
-Each line of the topology file is a series of space-seperated tuples formatted
-as <IP address>,<port> which represent a node of the network.
+Each line of the topology file is a series of space-seperated tuples formatted as IP_ADDRESS,PORT which represent a node of the network.
 The first tuple of a line specifies the IP address and port of the represented node.
 Each following tuple is the IP and port of a node that the represented node has a connection to.
 
 Example:
 
 1.1.1.1,1 1.1.1.1,2
+
 1.1.1.1,2 1.1.1.1,1 1.1.1.1,3
 1.1.1.1,3 1.1.1.1,2
 
