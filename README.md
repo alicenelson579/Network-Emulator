@@ -47,6 +47,7 @@ Usage:
 python3 network_trace.py -a PORT -b SRC_NAME -c SRC_PORT -d DEST_NAME -e DEST_PORT -f OPTIONS
 
 -a PORT
+
 The port that network_trace.py will send trace packets from.
 
 -b SOURCE_NAME
