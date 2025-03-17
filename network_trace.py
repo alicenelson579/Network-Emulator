@@ -3,6 +3,9 @@ import socket
 import struct
 import time
 
+import node
+import packet
+
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
 sock = socket.socket(type = socket.SOCK_DGRAM)
@@ -14,71 +17,6 @@ def ip_to_int(addr):
 
 def int_to_ip(addr):
     return socket.inet_ntoa(struct.pack("!I", addr))
-
-class node: 
-    def __init__(self, ip, port):
-        self.ip     = ip
-        self.port   = port
-        self.ip_num = ip_to_int(ip)
-        self.pair   = (ip, port)
-
-    @classmethod
-    def from_str_pair(self, node_pair):
-        return node(node_pair[0], int(node_pair[1]))
-
-    def __eq__(self, node2):
-        return self.ip_num == node2.ip_num and self.port == node2.port
-    
-    def __hash__(self):
-        return hash((self.ip_num, self.port))
-    
-    def __str__(self):
-        return "IP: " + self.ip + " Port: " + str(self.port)
-
-class packet:
-    def __init__(self):
-        self.src          = None
-        self.dest         = None
-        self.length       = None
-        self.type         = None
-        self.seq_num      = None
-        self.inner_length = None
-        self.payload      = None
-        self.packet       = None
-        self.next         = None
-        self.recfrom      = None
-    
-    # def log(self, msg):
-    #     with open(log_name, "w") as log_file:
-    #         log_file.write("A packet was dropping because " + msg + "\n")
-    #         log_file.write("Dropped packet info:\n")
-    #         log_file.write("Source (address, port): " + str(self.src) + "\n")
-    #         log_file.write("Destination (address, port)" + str(self.dest) + "\n")
-    #         log_file.write("Packet type: " + self.type + "\n")
-    #         log_file.write("Time of loss: " + str(get_time_ms()) + "\n")
-    #         log_file.write("Priority: " + str(self.priority) + "\n")
-    #         log_file.write("Payload Size: " + str(self.inner_length) + "\n")
-    
-    def send(self, next):
-        sock.sendto(self.encapsulate(), next.pair)
-    def decapsulate(self):
-        header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
-        self.src          = node(int_to_ip(header[1]), header[2])
-        self.dest         = node(int_to_ip(header[3]), header[4])
-        # print("source: " + str(self.src))
-        # print("dest: " + str(self.dest))
-        self.length       = header[5]
-        self.type         = header[6].decode("utf-8")
-        self.seq_num      = header[7]
-        self.inner_length = header[8]
-        self.payload = self.packet[NUM_BYTES_IN_HEADER:]
-    def encapsulate(self):
-        header = struct.pack("!BIHIHIcII", 1, self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
-        if (self.payload == None):
-            self.packet = header
-        else:
-            self.packet = header + self.payload
-        return self.packet
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "trace a route")

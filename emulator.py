@@ -3,6 +3,9 @@ import socket
 import struct
 import time
 
+from node import node
+from packet import packet
+
 NS_PER_SEC = 1000000000
 MS_PER_SEC = 1000
 NS_PER_MS  = 1000000
@@ -27,74 +30,6 @@ def int_to_ip(addr):
 
 def get_time_ms():
     return round((time.time_ns() / NS_PER_SEC), 3)
-
-class node: 
-    def __init__(self, ip, port):
-        self.ip     = ip
-        self.port   = port
-        self.ip_num = ip_to_int(ip)
-        self.pair   = (ip, port)
-
-    @classmethod
-    def from_str_pair(self, node_pair):
-        return node(node_pair[0], int(node_pair[1]))
-
-    def __eq__(self, node2):
-        return self.ip_num == node2.ip_num and self.port == node2.port
-    
-    def __hash__(self):
-        return hash((self.ip_num, self.port))
-    
-    def __str__(self):
-        return "IP: " + self.ip + " Port: " + str(self.port)
-
-class packet:
-    def __init__(self):
-        self.src          = None
-        self.dest         = None
-        self.length       = None
-        self.type         = None
-        self.seq_num      = None
-        self.inner_length = None
-        self.payload      = None
-        self.packet       = None
-        self.next         = None
-        self.recfrom      = None
-    
-    # def log(self, msg):
-    #     with open(log_name, "w") as log_file:
-    #         log_file.write("A packet was dropping because " + msg + "\n")
-    #         log_file.write("Dropped packet info:\n")
-    #         log_file.write("Source (address, port): " + str(self.src) + "\n")
-    #         log_file.write("Destination (address, port)" + str(self.dest) + "\n")
-    #         log_file.write("Packet type: " + self.type + "\n")
-    #         log_file.write("Time of loss: " + str(get_time_ms()) + "\n")
-    #         log_file.write("Priority: " + str(self.priority) + "\n")
-    #         log_file.write("Payload Size: " + str(self.inner_length) + "\n")
-    
-    def send(self):
-        if self.dest in forwarding_table.keys():
-            sock.sendto(self.encapsulate(), forwarding_table[self.dest].pair)
-        else:
-            raise Exception("no forwarding entry found")
-    def decapsulate(self):
-        header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
-        self.src          = node(int_to_ip(header[1]), header[2])
-        self.dest         = node(int_to_ip(header[3]), header[4])
-        # print("source: " + str(self.src))
-        # print("dest: " + str(self.dest))
-        self.length       = header[5]
-        self.type         = header[6].decode("utf-8")
-        self.seq_num      = header[7]
-        self.inner_length = header[8]
-        self.payload = self.packet[NUM_BYTES_IN_HEADER:]
-    def encapsulate(self):
-        header = struct.pack("!BIHIHIcII", 1, self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
-        if (self.payload == None):
-            self.packet = header
-        else:
-            self.packet = header + self.payload
-        return self.packet
 
 def print_topology():
     for entry in network_topology.keys():
@@ -158,7 +93,7 @@ def send_hello():
     valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
     for edge in valid_edges:
         hello_packet.dest = edge
-        hello_packet.send()
+        hello_packet.send(forwarding_table)
 
 def send_link_state():
     global cur_link_num
@@ -178,7 +113,7 @@ def send_link_state():
     link_state_packet.length = 9 + link_state_packet.inner_length
     for edge in valid_edges:
         link_state_packet.dest = edge
-        link_state_packet.send()
+        link_state_packet.send(forwarding_table)
     cur_link_num += 1 
 
 
@@ -229,7 +164,7 @@ def create_routes():
                         for edge in network_topology[host_node].keys():
                             if (network_topology[host_node][edge] > 0 and rec_node != edge):
                                 new_packet.dest = edge
-                                new_packet.send()
+                                new_packet.send(forwarding_table)
             elif new_packet.type == "O":
                 ttl = struct.unpack("!I", new_packet.payload[:4])[0]
                 if ttl == 0:
@@ -247,11 +182,11 @@ def create_routes():
                 else:
                     if new_packet.dest in forwarding_table.keys():
                         new_packet.payload = struct.pack("!I", ttl - 1)
-                        new_packet.send()
+                        new_packet.send(forwarding_table)
                     
             else:
                 if new_packet.dest in forwarding_table.keys():
-                    new_packet.send()
+                    new_packet.send(forwarding_table)
         if cur_time >= next_hello:
             #print("cur time: " + str(cur_time) + " next hello: " + str(next_hello))
             next_hello = cur_time + NS_PER_MS * 2
