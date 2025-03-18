@@ -3,8 +3,8 @@ README.md
 emulator.py
 
 This is a simple script created for my computer networks course.
-It emulates a simple router in a network of routers, and the shape of that
-network is determined by a topology file.
+It emulates a simple network switch, with the topology of the
+network being determined by a topology file.
 
 Usage:
 python3 emulator.py -p PORT -f FILENAME
