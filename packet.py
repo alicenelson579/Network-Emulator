@@ -4,12 +4,6 @@ import socket
 
 NUM_BYTES_IN_HEADER = 26
 
-def ip_to_int(addr):
-    return struct.unpack("!I", socket.inet_aton(addr))[0]
-
-def int_to_ip(addr):
-    return socket.inet_ntoa(struct.pack("!I", addr))
-
 class packet:
     def __init__(self):
         self.src          = None
@@ -43,8 +37,8 @@ class packet:
             raise Exception("no forwarding entry found")
     def decapsulate(self):
         header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
-        self.src          = node(int_to_ip(header[1]), header[2])
-        self.dest         = node(int_to_ip(header[3]), header[4])
+        self.src          = node(node.int_to_ip(header[1]), header[2])
+        self.dest         = node(node.int_to_ip(header[3]), header[4])
         # print("source: " + str(self.src))
         # print("dest: " + str(self.dest))
         self.length       = header[5]

@@ -22,12 +22,6 @@ print(address)
 sock = socket.socket(type = socket.SOCK_DGRAM)
 sock.setblocking(False)
 
-def ip_to_int(addr):
-    return struct.unpack("!I", socket.inet_aton(addr))[0]
-
-def int_to_ip(addr):
-    return socket.inet_ntoa(struct.pack("!I", addr))
-
 def get_time_ms():
     return round((time.time_ns() / NS_PER_SEC), 3)
 
@@ -155,7 +149,7 @@ def create_routes():
                                 network_topology[n][new_packet.src] = abs(network_topology[n][new_packet.src]) * -1
                         for i in range(0, int((new_packet.inner_length - 4) / 10)):
                             entry = struct.unpack("!IHI", new_packet.payload[(i * 10)+4:(i * 10)+14])
-                            edge_node = node(int_to_ip(entry[0]), entry[1])
+                            edge_node = node(node.int_to_ip(entry[0]), entry[1])
                             network_topology[new_packet.src][edge_node] = entry[2]
                             network_topology[edge_node][new_packet.src] = entry[2]
                         build_forward_table()

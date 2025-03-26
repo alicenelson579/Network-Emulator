@@ -12,12 +12,6 @@ sock = socket.socket(type = socket.SOCK_DGRAM)
 sock.setblocking(True)
 NUM_BYTES_IN_HEADER = 26
 
-def ip_to_int(addr):
-    return struct.unpack("!I", socket.inet_aton(addr))[0]
-
-def int_to_ip(addr):
-    return socket.inet_ntoa(struct.pack("!I", addr))
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "trace a route")
 
