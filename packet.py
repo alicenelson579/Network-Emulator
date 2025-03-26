@@ -4,37 +4,38 @@ import socket
 
 NUM_BYTES_IN_HEADER = 26
 
+# A class to represent a packet sent from one node to another
+
 class packet:
     def __init__(self):
+        # the node the packet will be sent from
         self.src          = None
+        # The node the packet will be sent to
         self.dest         = None
+        # The length of the packet's data plus the length of inner_length value, 
+        # plus the length of the sequence number, plus the length of the type value
         self.length       = None
+        # The packet's tyep
         self.type         = None
+        # The packet's Sequence Number
         self.seq_num      = None
+        # The length of the packet's data in bytes
         self.inner_length = None
+        # The data being sent
         self.payload      = None
+        # All the packet's header and data packed together
         self.packet       = None
+        # The next node the packet will be forwarded to on it's way to it's destination
         self.next         = None
-        self.recfrom      = None
     
-    # def log(self, msg):
-    #     with open(log_name, "w") as log_file:
-    #         log_file.write("A packet was dropping because " + msg + "\n")
-    #         log_file.write("Dropped packet info:\n")
-    #         log_file.write("Source (address, port): " + str(self.src) + "\n")
-    #         log_file.write("Destination (address, port)" + str(self.dest) + "\n")
-    #         log_file.write("Packet type: " + self.type + "\n")
-    #         log_file.write("Time of loss: " + str(get_time_ms()) + "\n")
-    #         log_file.write("Priority: " + str(self.priority) + "\n")
-    #         log_file.write("Payload Size: " + str(self.inner_length) + "\n")
-    
-    def send(self, forwarding_table):
+    # Encapsulates, then sends the packet to the specified node
+    def send(self, dest_node):
         sock = socket.socket(type = socket.SOCK_DGRAM)
         sock.setblocking(False)
-        if self.dest in forwarding_table.keys():
-            sock.sendto(self.encapsulate(), forwarding_table[self.dest].pair)
-        else:
-            raise Exception("no forwarding entry found")
+        sock.sendto(self.encapsulate(), dest_node.pair)
+
+    # Takes the data in self.packet and decapsulates it, 
+    # filling out the packet's other attributes
     def decapsulate(self):
         header = struct.unpack("!BIHIHIcII", self.packet[:NUM_BYTES_IN_HEADER])
         self.src          = node(node.int_to_ip(header[1]), header[2])
@@ -46,6 +47,9 @@ class packet:
         self.seq_num      = header[7]
         self.inner_length = header[8]
         self.payload = self.packet[NUM_BYTES_IN_HEADER:]
+
+    # Takes the data in a packet's attributes and 
+    # encapsulates them into a single binary object
     def encapsulate(self):
         header = struct.pack("!BIHIHIcII", 1, self.src.ip_num, self.src.port, self.dest.ip_num, self.dest.port, self.length, self.type.encode(), self.seq_num, self.inner_length)
         if (self.payload == None):

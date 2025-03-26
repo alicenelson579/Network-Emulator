@@ -3,9 +3,8 @@ import socket
 import struct
 import time
 
-import node
-import packet
-
+from node import node
+from packet import packet
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
 sock = socket.socket(type = socket.SOCK_DGRAM)

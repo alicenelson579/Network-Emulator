@@ -87,7 +87,7 @@ def send_hello():
     valid_edges = [x for x in network_topology[host_node].keys() if network_topology[host_node][x] > 0]
     for edge in valid_edges:
         hello_packet.dest = edge
-        hello_packet.send(forwarding_table)
+        hello_packet.send(forwarding_table[edge])
 
 def send_link_state():
     global cur_link_num
@@ -107,7 +107,7 @@ def send_link_state():
     link_state_packet.length = 9 + link_state_packet.inner_length
     for edge in valid_edges:
         link_state_packet.dest = edge
-        link_state_packet.send(forwarding_table)
+        link_state_packet.send(forwarding_table[edge])
     cur_link_num += 1 
 
 
@@ -158,7 +158,7 @@ def create_routes():
                         for edge in network_topology[host_node].keys():
                             if (network_topology[host_node][edge] > 0 and rec_node != edge):
                                 new_packet.dest = edge
-                                new_packet.send(forwarding_table)
+                                new_packet.send(forwarding_table[edge])
             elif new_packet.type == "O":
                 ttl = struct.unpack("!I", new_packet.payload[:4])[0]
                 if ttl == 0:
@@ -176,11 +176,11 @@ def create_routes():
                 else:
                     if new_packet.dest in forwarding_table.keys():
                         new_packet.payload = struct.pack("!I", ttl - 1)
-                        new_packet.send(forwarding_table)
+                        new_packet.send(forwarding_table[new_packet.dest])
                     
             else:
                 if new_packet.dest in forwarding_table.keys():
-                    new_packet.send(forwarding_table)
+                    new_packet.send(forwarding_table[new_packet.dest])
         if cur_time >= next_hello:
             #print("cur time: " + str(cur_time) + " next hello: " + str(next_hello))
             next_hello = cur_time + NS_PER_MS * 2
