@@ -17,6 +17,7 @@ port = None
 host_node = None
 cur_link_num = 0
 
+# Initialize the socket
 host_name = socket.gethostname()
 address = socket.gethostbyname(host_name)
 sock = socket.socket(type = socket.SOCK_DGRAM)
