@@ -204,7 +204,7 @@ def create_routes():
                                 new_packet.send(forwarding_table[edge])
             elif new_packet.type == "O": # Check if received packet is a network trace packet
                 ttl = struct.unpack("!I", new_packet.payload[:4])[0]
-                # If tll is 0, send a return packet to the packet source so it knows where 
+                # If tll is 0, send a return packet directly to the packet source so it knows where 
                 # the packet ended up
                 if ttl == 0:
                     ret_packet = packet()
